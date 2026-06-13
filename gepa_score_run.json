@@ -1,8 +1,0 @@
-{
-  "seed_above": 0.016308687980946257,
-  "best_above": 0.026066190521607902,
-  "seed_corr_po": 0.4690077000464443,
-  "best_corr_po": 0.49055361166631817,
-  "best_instruction": "---\n\nFor this math query, base each model's correctness probability on its OWN neighbors: compute the similarity-weighted fraction correct for HAIKU and separately for OPUS, then weight that estimate by how close the neighbors are \u2014 when the top neighbors have high similarity and agree, push toward the extremes (90%+ if nearly all correct, 10% or less if nearly all wrong), but when neighbors are weak matches or disagree, pull toward 45\u201365% to reflect genuine uncertainty. Treat OPUS as generally stronger: it may be high where HAIKU's neighbors fail, so do not copy HAIKU's probability onto OPUS, and only rate HAIKU above 80% when its OWN closest neighbors are almost all correct on similarly short solutions. Use solution length as a difficulty signal \u2014 long neighbor solutions lower correctness (cut HAIKU more than OPUS) and raise predicted tokens, while short ones raise correctness and lower tokens. Avoid the 70\u201380% band as a default landing spot for HAIKU; reserve those values only when its neighbors clearly earn them, and otherwise let the evidence drive HAIKU down or moderately up. Predict each model's output tokens as the simil",
-  "optimization_cost_usd": 2.5676589999999955
-}

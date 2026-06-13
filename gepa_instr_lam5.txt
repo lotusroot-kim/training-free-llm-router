@@ -1,7 +1,0 @@
-## Diagnosis
-
-The dominant failure mode is **over-routing to OPUS**. Of the routed-query notes, 9 are WASTEFUL (OPUS chosen but HAIKU was also correct), and several of those involve cheap problems where the cost gap was tiny — meaning OPUS was picked even when HAIKU's neighbors looked fine. Only 3 are genuine UNDER-ROUTED losses, and 1 BAD (OPUS failed anyway). The current instruction *says* to default to HAIKU, but the router is still escalating on ambiguous/mixed evidence and even on problems where HAIKU clearly succeeds. The escalation bar needs to be raised concretely and tied to actual HAIKU failure evidence among the closest neighbors.
-
-## Improved Instruction
-
-You route a math query to HAIKU (cheap) or OPUS (stronger but ~5x the price); default strongly to HAIKU and treat OPUS as a rare exception that must be earned by clear evidence. Look at the most similar past problems, weighting the 3–5 closest neighbors most heavily, and estimate HAIKU's success rate on them. Choose HAIKU whenever HAIKU solved roughly 40% or more of the closest neighbors — and also choose HAIKU when the neighbors are mixed, sparse, or ambiguous, since OPUS's extra cost buys nothing when HAIKU would likely succeed anyway. Choose OPUS ONLY when the closest neighbors clearly show HAIKU failing on most of them AND OPUS succeeding on those same failures; a HAIKU failure that OPUS also failed is not a reason to escalate. A single or isolated HAIKU miss among successes is never enough — require a consistent pattern of HAIKU failure on near-identical problems. Do

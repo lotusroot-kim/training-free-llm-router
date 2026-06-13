@@ -42,29 +42,29 @@ import os
 
 
 def main():
-    seed = load("threshold_scores_seed.jsonl")
-    Ha, Hc = seed["haiku_perf"].mean(), seed["haiku_cost"].mean()
-    Oa, Oc = seed["opus_perf"].mean(), seed["opus_cost"].mean()
+    best = load("threshold_scores_qwen_gepa.jsonl")
+    Ha, Hc = best["haiku_perf"].mean(), best["haiku_cost"].mean()
+    Oa, Oc = best["opus_perf"].mean(), best["opus_cost"].mean()
 
     fig, ax = plt.subplots(figsize=(9, 6.5))
-    ax.plot([Hc, Oc], [Ha, Oa], "k--", lw=1.5, label="haiku↔opus interpolation (mix baseline)")
-    ax.plot(*cost_aware_curve(seed)[:, :2].T, color="darkorange", lw=2,
-            label="SEED score prompt  (+0.017)")
-    if os.path.exists("threshold_scores_gepa.jsonl"):
-        ax.plot(*cost_aware_curve(load("threshold_scores_gepa.jsonl"))[:, :2].T,
-                color="crimson", lw=2, label="Titan + GEPA v1  (+0.023)")
-    if os.path.exists("threshold_scores_gepa_v2.jsonl"):
-        ax.plot(*cost_aware_curve(load("threshold_scores_gepa_v2.jsonl"))[:, :2].T,
-                color="green", lw=2, label="Titan + GEPA v2  (+0.028)")
-    if os.path.exists("threshold_scores_qwen_gepa.jsonl"):
-        ax.plot(*cost_aware_curve(load("threshold_scores_qwen_gepa.jsonl"))[:, :2].T,
-                color="blue", lw=3, label="Qwen-1024 + GEPA (Qwen-tuned) — BEST  (+0.037)")
+    ax.plot([Hc, Oc], [Ha, Oa], "k--", lw=1.5,
+            label="haiku↔opus mix baseline (random split)")
+    ax.plot(*cost_aware_curve(best)[:, :2].T, color="blue", lw=3,
+            label="GEPA-optimized router (cost-aware, honest)")
     ax.scatter([Hc, Oc], [Ha, Oa], c=["tab:blue", "tab:green"], s=90, zorder=5)
     ax.annotate("all-haiku", (Hc, Ha), textcoords="offset points", xytext=(8, -12), fontsize=8)
     ax.annotate("all-opus", (Oc, Oa), textcoords="offset points", xytext=(-58, 4), fontsize=8)
-    ax.set_xlabel("serving cost ($ / query)   —   GEPA optimization & router cost tracked separately")
+    # mark the "~half opus cost" operating point
+    half = Oc / 2
+    cur = cost_aware_curve(best)
+    cur = cur[cur[:, 0].argsort()]
+    ah = float(np.interp(half, cur[:, 0], cur[:, 1]))
+    ax.scatter([half], [ah], s=120, marker="*", color="red", zorder=6)
+    ax.annotate(f"~½ opus cost\nacc {ah:.3f} ({ah/Oa*100:.0f}% of opus)",
+                (half, ah), textcoords="offset points", xytext=(8, -28), fontsize=8, color="red")
+    ax.set_xlabel("serving cost ($ / query)   —   router/GEPA cost tracked separately")
     ax.set_ylabel("accuracy")
-    ax.set_title("GEPA-tuned score prompt vs the mix baseline (honest cost-aware curve)")
+    ax.set_title("GEPA-optimized router: ~opus accuracy at roughly half the cost")
     ax.grid(alpha=0.3)
     ax.legend(loc="lower right", fontsize=9)
     fig.tight_layout()

@@ -1,7 +1,0 @@
-## Diagnosis
-
-The current instruction over-corrected. The previous version over-routed to OPUS; this one now **under-routes**. Of the labeled mistakes, UNDER-ROUTED cases (6) outnumber WASTEFUL ones (5), and the under-routes cost full accuracy points — far more damaging at the 2.0 cost weight than a wasteful OPUS call (~$0.001–0.013 = at most ~0.026 penalty, while a lost answer costs 1.0 accuracy). The instruction's demand for "clearly and repeatedly failing" evidence sets the OPUS bar too high, so the router keeps HAIKU on borderline-hard neighbors where HAIKU actually fails. The fix: keep defaulting to HAIKU when its neighbor success rate is genuinely high, but lower the threshold for escalating to OPUS whenever HAIKU's success on close neighbors is shaky AND OPUS recovers those cases.
-
-## Improved Instruction
-
-Route each math query to HAIKU (cheap) or OPUS (stronger, ~5x costlier), choosing the cheapest model likely to get it right. Focus on HAIKU's success rate among the most similar past problems: if HAIKU was correct on roughly two-thirds or more of close neighbors, pick HAIKU — even if OPUS also succeeded, since OPUS solving a problem HAIKU also solves is wasted money. Pick OPUS when HAIKU's success on close neighbors is shaky (it failed on a meaningful share of them) AND OPUS succeeded on those same failing cases; you do not need overwhelming or repeated evidence, a clear pattern of HAIKU misses that OPUS recovers is enough. Weight neighbors by similarity: a couple of very close HAIKU failures that OP
