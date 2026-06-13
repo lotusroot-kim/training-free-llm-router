@@ -11,7 +11,7 @@ that decision with **GEPA prompt evolution**.
 The whole thing is a study in *closing the gap to oracle without any gradient
 step* — every gain comes from retrieval, prompting, and threshold calibration.
 
-# ════════════════════ TRAINING (offline, one-time) ════════════════════
+# TRAINING (offline, one-time)
 
 "Training" here is **gradient-free**: we build a memory, then let GEPA evolve a
 text prompt. No weights are ever updated.
@@ -40,20 +40,20 @@ prompt — the prompt text is the *only* thing that "learns".
 ```
 seed score-prompt
      │
-     ▼   ╔══════════════════ one GEPA round (repeat N) ══════════════════╗
-     │   ║ 1. ROLLOUT  — sample a dev minibatch from MEMORY (leave-self-  ║
-     │   ║    out kNN, so a query never retrieves itself). Run the router ║
-     │   ║    with the current prompt; build the honest cost/accuracy     ║
-     │   ║    curve and score it (area above the haiku↔opus mix line).    ║
-     │   ║ 2. REFLECT  — show OPUS the prompt + its worst per-model        ║
-     │   ║    estimation errors; OPUS writes an IMPROVED prompt            ║
-     │   ║    (reflective mutation — natural-language "gradient").         ║
-     │   ║ 3. SELECT   — keep a Pareto pool of prompts (each best on some  ║
-     │   ║    slice), sample a parent by how many slices it wins           ║
-     │   ║    (pareto-frequency), occasionally MERGE two strong prompts,   ║
-     │   ║    thread ancestor LINEAGE so edits don't repeat, and RESAMPLE  ║
-     │   ║    a fresh minibatch each round to avoid overfitting one batch. ║
-     │   ╚════════════════════════════════════════════════════════════════╝
+     ▼   ┌────────────────── one GEPA round (repeat N) ──────────────────┐
+     │   │ 1. ROLLOUT  — sample a dev minibatch from MEMORY (leave-self-  │
+     │   │    out kNN, so a query never retrieves itself). Run the router │
+     │   │    with the current prompt; build the honest cost/accuracy     │
+     │   │    curve and score it (area above the haiku↔opus mix line).    │
+     │   │ 2. REFLECT  — show OPUS the prompt + its worst per-model        │
+     │   │    estimation errors; OPUS writes an IMPROVED prompt            │
+     │   │    (reflective mutation — natural-language "gradient").         │
+     │   │ 3. SELECT   — keep a Pareto pool of prompts (each best on some  │
+     │   │    slice), sample a parent by how many slices it wins           │
+     │   │    (pareto-frequency), occasionally MERGE two strong prompts,   │
+     │   │    thread ancestor LINEAGE so edits don't repeat, and RESAMPLE  │
+     │   │    a fresh minibatch each round to avoid overfitting one batch. │
+     │   └────────────────────────────────────────────────────────────────┘
      ▼
 evolved SCORE-PROMPT   →  gepa_score_qwen_instruction.txt
 ```
@@ -67,7 +67,7 @@ evolved SCORE-PROMPT   →  gepa_score_qwen_instruction.txt
 - **Co-tuning matters**: the prompt is evolved *on the Qwen-retriever's neighbor
   distribution* — swapping the retriever without re-running GEPA underperforms.
 
-# ════════════════════ INFERENCE (online, per query) ════════════════════
+# INFERENCE (online, per query)
 
 Exactly **one embedding + one haiku call** per query — nothing else.
 
