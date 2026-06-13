@@ -49,6 +49,7 @@ class MemoryRouter:
         self.k = k
         self.instruction = instruction
         self.score_instruction = score_instruction
+        self.show_neighbor_text = False    # H1 toggle: include neighbor query snippets
         self.mem = []
         vecs = []
         for line in open(memory_path):
@@ -111,10 +112,14 @@ class MemoryRouter:
         for nb, sim in neighbors:
             hp = "right" if nb["haiku_perf"] >= 0.5 else "WRONG"
             op = "right" if nb["opus_perf"] >= 0.5 else "WRONG"
+            snippet = ""
+            if self.show_neighbor_text:    # H1: let haiku re-judge similarity from text
+                q = nb.get("query", "").replace("\n", " ")
+                snippet = f' "{q[:140]}"' if q else ""
             lines.append(
                 f"- sim={sim:.2f} [{nb.get('task_name','?')}/"
                 f"{nb.get('difficulty','?')}] haiku={hp} ({int(nb.get('haiku_out',0))} tok), "
-                f"opus={op} ({int(nb.get('opus_out',0))} tok)")
+                f"opus={op} ({int(nb.get('opus_out',0))} tok){snippet}")
         hist = "\n".join(lines)
         return (
             f"{self.score_instruction}\n\n"

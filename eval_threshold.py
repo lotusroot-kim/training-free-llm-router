@@ -81,6 +81,8 @@ def main():
                          "use with a matching --memory (e.g. memory_qwen.jsonl) to swap retrieval")
     ap.add_argument("--qvec_field", default="emb_query",
                     help="which field in --test_qvecs holds the vector")
+    ap.add_argument("--neighbor_text", action="store_true",
+                    help="H1: include neighbor query snippets in the score prompt")
     ap.add_argument("--out", default="threshold_scores.jsonl")
     args = ap.parse_args()
 
@@ -88,6 +90,7 @@ def main():
     if args.limit:
         data = data[: args.limit]
     router = MemoryRouter(args.memory, k=args.k)
+    router.show_neighbor_text = args.neighbor_text
     qvecs = None
     if args.test_qvecs:
         qvecs = {}
