@@ -1,8 +1,8 @@
 {
-  "seed_above": -0.006301648343785054,
-  "best_above": 0.02158110059287858,
-  "best_corr_po": 0.29042485436252796,
-  "best_via": "mut",
+  "seed_above": 0.0003200188852655134,
+  "best_above": -0.0036346747669624953,
+  "best_corr_po": 0.28580639071432873,
+  "best_via": "seed",
   "best_instruction": "For this math query, estimate for BOTH HAIKU and OPUS the probability of a correct answer and the output tokens each would produce, using the most similar past problems. First predict tokens as the similarity-weighted average of neighbor tokens per model, raised when the query has more steps, larger numbers, or multiple parts. Set each correctness probability from the similarity-weighted fraction of correct neighbors FOR THAT MODEL, but cap how far you go by your evidence: only reach 88-96% when the 2-3 closest neighbors are both highly similar AND unanimously correct, use 70-85% when close neighbors mostly agree, 30-55% when neighbors are mixed or only weakly similar, and 5-25% only when close similar neighbors are mostly wrong. Treat a high predicted token count or visibly hard, multi-step problem as direct evidence to LOWER correctness \u2014 pull HAIKU down sharply (often into 20-50%) on long or intricate problems, and pull OPUS down moderately too, since strong models still miss the hardest cases. Keep the two models separate: expect OPUS to exceed HAIKU most often, so when both have decent evidence give OPUS a clearly higher probability rather than tying them. Distrust similarity scores when a neighbor's topic or token count differs from this query, and down-weight it toward the middle. Avoid defaulting everything to 50%, but reserve the extremes for genuinely str",
-  "optimization_cost_usd": 9.42919099999998
+  "optimization_cost_usd": 13.85353499999995
 }

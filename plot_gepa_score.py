@@ -49,16 +49,16 @@ def main():
     fig, ax = plt.subplots(figsize=(9, 6.5))
     ax.plot([Hc, Oc], [Ha, Oa], "k--", lw=1.5, label="haiku↔opus interpolation (mix baseline)")
     ax.plot(*cost_aware_curve(seed)[:, :2].T, color="darkorange", lw=2,
-            label="cost-aware, SEED score prompt (honest)")
+            label="SEED score prompt  (+0.017)")
     if os.path.exists("threshold_scores_gepa.jsonl"):
         ax.plot(*cost_aware_curve(load("threshold_scores_gepa.jsonl"))[:, :2].T,
-                color="crimson", lw=2, label="cost-aware, GEPA v1 score prompt (honest)")
+                color="crimson", lw=2, label="Titan + GEPA v1  (+0.023)")
     if os.path.exists("threshold_scores_gepa_v2.jsonl"):
         ax.plot(*cost_aware_curve(load("threshold_scores_gepa_v2.jsonl"))[:, :2].T,
-                color="green", lw=2, label="Titan retrieval + GEPA v2 (best Titan)")
+                color="green", lw=2, label="Titan + GEPA v2  (+0.028)")
     if os.path.exists("threshold_scores_qwen_gepa.jsonl"):
         ax.plot(*cost_aware_curve(load("threshold_scores_qwen_gepa.jsonl"))[:, :2].T,
-                color="blue", lw=3, label="Qwen-1024 retrieval + GEPA (Qwen-tuned) — best")
+                color="blue", lw=3, label="Qwen-1024 + GEPA (Qwen-tuned) — BEST  (+0.037)")
     ax.scatter([Hc, Oc], [Ha, Oa], c=["tab:blue", "tab:green"], s=90, zorder=5)
     ax.annotate("all-haiku", (Hc, Ha), textcoords="offset points", xytext=(8, -12), fontsize=8)
     ax.annotate("all-opus", (Oc, Oa), textcoords="offset points", xytext=(-58, 4), fontsize=8)

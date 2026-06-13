@@ -117,6 +117,82 @@ Tried replacing/blending haiku's token estimate with neighbor token means
   or feeding richer per-model token evidence (mean+spread) and re-tuning. ~$3,
   to be done with fresh budget — left for the morning.
 
+### 7. Cost-prediction GEPA re-tune (A/B) — BOTH WORSE than champion
+Warm-started from the best Qwen prompt, re-evolved the TOKEN-prediction rules.
+- **A** objective=above_line: corr(Δcost) **0.327→0.496** (big!), but above_line
+  **0.0365→0.0201**. WORSE.
+- **B** objective=cost_corr (accuracy-guarded): corr(Δcost) 0.281, above_line
+  **0.0080**. WORSE.
+
+**Why the §KEY-DIAGNOSIS ceiling was misleading:** that ceiling held the marginal
+signal FIXED and only swapped in true Δcost. But re-tuning the prompt for cost
+ALSO changed the token *distribution* and the marginal estimates. Measured the
+true-cost ceiling per prompt:
+| prompt | marg_corr | above(pred$) | above(TRUE$ ceiling) |
+|---|---|---|---|
+| champion | 0.278 | **0.0365** | **0.0493** |
+| A | 0.304 | 0.0201 | 0.0387 |
+| B | 0.311 | 0.0080 | 0.0360 |
+
+The re-tuned prompts emphasized "hard → 3k-20k opus tokens", which RAISED rank
+correlation but distorted the Δcost *magnitude* used as the routing denominator,
+and lowered the whole achievable ceiling. **Lesson: corr(Δcost) is the wrong
+proxy — optimizing it does not optimize routing. The champion's lower-corr but
+better-scaled cost estimate routes better.** Champion stays best at +0.0365.
+
+**Revised takeaway:** the +0.013 "cost-prediction headroom" is real ONLY if you
+could improve cost *without* perturbing the marginal/scale — which a single
+shared prompt can't do cleanly. A truly separate, calibrated token regressor
+(fit on dev, e.g. isotonic on neighbor-token features) is the honest way to test
+that headroom, and it must not add a serving call. Left for later.
+
+### 8. Reasoning (CoT) scoring — WORSE than champion
+Let haiku reason 2-4 sentences about the query's structure (steps, traps, where
+a cheap model slips) before emitting scores; same single serving call, longer
+output (~10× router cost, still its own ledger).
+| prompt | marg_corr | above(pred$) | above(TRUE$) |
+|---|---|---|---|
+| champion (snap scoring) | 0.278 | **0.0365** | 0.0493 |
+| CoT scoring | 0.246 | **0.0138** | 0.0280 |
+
+- corr(p_o,opus)↑ slightly (0.17→0.19) BUT marg_corr↓ (0.278→0.246), cost
+  corr↓ (0.33→0.24), and the achievable ceiling collapsed (0.049→0.028).
+- haiku tends to OVER-TRUST its own reasoning → scores pile up at extremes
+  (p_o=1.00 a lot) → less discriminative, same failure shape as self-ensemble.
+- Confound: the champion prompt was GEPA-tuned for SNAP scoring; bolting CoT on
+  top is a format mismatch (same lesson as k16 / neighbor-text / A-B). A fair
+  test needs GEPA re-tuned FOR the CoT format (~$3-4) — not run yet.
+
+## Pattern across ALL attempts (the real lesson)
+Every change to the haiku INPUT/OUTPUT format (bigger k, neighbor text,
+self-ensemble, cost-retune, CoT) underperformed the champion, because the
+champion prompt is tightly co-adapted to its exact (Qwen-k8, snap-score) setup.
+The only wins came from CO-OPTIMIZING the whole pipeline (Qwen retrieval + GEPA
+re-tuned on it). **Isolated tweaks lose; joint re-tuning wins.** Any future idea
+(CoT, new retriever, richer evidence) must be paired with a GEPA re-tune in the
+SAME format to have a fair shot.
+
+### 9. CoT + JOINT GEPA re-tune — the fair test, still FAILS
+The honest "co-optimize the format" test the §8 lesson demanded: warm-start from
+the champion Qwen prompt and run the full GEPA v2 (pareto-sample/merge/lineage/
+resample) WITH cot=True, so the prompt is evolved FOR the CoT format on the Qwen
+neighbor distribution.
+- dev above_line: seed **+0.0003**, GEPA BEST **−0.0036** — GEPA could not find a
+  CoT prompt that even matches the snap-scoring seed, let alone the champion's
+  dev +0.0277. Every mutation went negative. Cost $13.85 (long CoT rollouts).
+- **Conclusion: CoT is fundamentally ill-suited here, not just un-tuned.** Even
+  joint optimization can't rescue it. Why: reasoning makes haiku CONFIDENT, so
+  p_o/p_h pile at the extremes (p_o=1.00) and lose the cross-query RANKING that
+  threshold routing depends on. Routing needs relative ordering, not per-item
+  certainty — and snap scoring preserves ordering better than CoT.
+
+**Final verdict on the whole search:** the champion (Qwen retrieval + Qwen-tuned
+snap-score GEPA, k=8, +0.0366, oracle gap 0.014) is a robust local optimum. Five
+distinct "improvement" ideas (bigger k, neighbor text, self-ensemble, cost-retune
+A/B, CoT — even with joint re-tuning) ALL underperformed it. The architecture's
+ceiling under one-haiku-call serving is ~+0.037; closing the last 0.014 to oracle
+needs true per-query cost (unavailable at route time) or a second serving call.
+
 ## Files added tonight
 - `explore_retrieval.py` — FREE retrieval-quality sweep (memory-prior proxy)
 - `explore_signal.py`    — FREE post-hoc signal-transform sweep

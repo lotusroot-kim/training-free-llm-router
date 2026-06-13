@@ -95,6 +95,10 @@ def main():
     ap.add_argument("--k", type=int, default=8)
     ap.add_argument("--workers", type=int, default=24)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--cot", action="store_true",
+                    help="evolve the prompt for CoT scoring (haiku reasons before scores)")
+    ap.add_argument("--seed_prompt", default="",
+                    help="warm-start instruction file ('' = built-in SEED_SCORE_INSTRUCTION)")
     ap.add_argument("--out", default="gepa_score_v2_instruction.txt")
     args = ap.parse_args()
 
@@ -104,7 +108,10 @@ def main():
     idx = list(range(len(router.mem)))
     rng.shuffle(idx)
     dev_pool = [router.mem[i] for i in idx[: args.pool]]   # resample minibatches from here
-    print(f"dev_pool={len(dev_pool)}  minibatch={args.dev}  k={args.k}  (GEPA v2: "
+    start_instr = (open(args.seed_prompt).read().strip() if args.seed_prompt
+                   else SEED_SCORE_INSTRUCTION)
+    print(f"dev_pool={len(dev_pool)}  minibatch={args.dev}  k={args.k}  cot={args.cot}  "
+          f"warm-start={args.seed_prompt or 'built-in'}  (GEPA v2: "
           f"pareto-sample + merge + lineage + resample)")
 
     reflect_cost = [0.0]
@@ -113,7 +120,7 @@ def main():
 
     def new_engine():      # technique 4: fresh minibatch each round
         mb = rng.sample(dev_pool, k=min(args.dev, len(dev_pool)))
-        return ScoreEvaluator(router, mb, args.workers)
+        return ScoreEvaluator(router, mb, args.workers, cot=args.cot)
 
     def mutate(instr, ev, eng):
         notes = feedback_notes(eng, ev, rng=rng)
@@ -137,8 +144,8 @@ def main():
 
     # seed
     eng = new_engine()
-    seed_ev = eng.evaluate(SEED_SCORE_INSTRUCTION)
-    pool = [{"instruction": SEED_SCORE_INSTRUCTION, **seed_ev, "gen": 0}]
+    seed_ev = eng.evaluate(start_instr)
+    pool = [{"instruction": start_instr, **seed_ev, "gen": 0}]
     best = pool[0]
     print(f"[seed] above_line={seed_ev['mean_above']:+.4f} corr_po={seed_ev['corr_po']:.2f}")
 

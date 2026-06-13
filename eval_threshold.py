@@ -24,10 +24,10 @@ import matplotlib.pyplot as plt
 from router import MemoryRouter
 
 
-def score_all(router, data, workers, ensemble=1, qvecs=None):
+def score_all(router, data, workers, ensemble=1, qvecs=None, cot=False):
     def one(r):
         qv = qvecs.get(r["id"]) if qvecs else None      # precomputed (e.g. Qwen) test vec
-        p_h, p_o, info = router.score(r["query"], qvec=qv, ensemble=ensemble)
+        p_h, p_o, info = router.score(r["query"], qvec=qv, ensemble=ensemble, cot=cot)
         return {"id": r["id"], "p_h": p_h, "p_o": p_o,
                 "haiku_perf": r["haiku_perf"], "opus_perf": r["opus_perf"],
                 "haiku_cost": r["haiku_cost"], "opus_cost": r["opus_cost"],
@@ -76,6 +76,8 @@ def main():
                     help="path to a score-prompt instruction (e.g. gepa_score_instruction.txt)")
     ap.add_argument("--ensemble", type=int, default=1,
                     help="single-call self-ensemble: estimate N times per query and average (v3)")
+    ap.add_argument("--cot", action="store_true",
+                    help="chain-of-thought scoring: haiku reasons before emitting scores (1 call)")
     ap.add_argument("--test_qvecs", default=None,
                     help="jsonl of precomputed test embeddings {id, emb_doc/emb_query/embedding}; "
                          "use with a matching --memory (e.g. memory_qwen.jsonl) to swap retrieval")
@@ -105,9 +107,11 @@ def main():
               f"({len(router.score_instruction)} chars)")
 
     from common import OUT_RATE, IN_RATE
-    rows = score_all(router, data, args.workers, ensemble=args.ensemble, qvecs=qvecs)
+    rows = score_all(router, data, args.workers, ensemble=args.ensemble, qvecs=qvecs, cot=args.cot)
     if args.ensemble > 1:
         print(f"self-ensemble: {args.ensemble} lenses/query in ONE haiku call")
+    if args.cot:
+        print("CoT scoring: haiku reasons before scores (1 call, longer output)")
     a = {key: np.array([r[key] for r in rows], float) for key in
          ("p_h", "p_o", "haiku_perf", "opus_perf", "haiku_cost", "opus_cost",
           "pred_h_out", "pred_o_out", "it_h", "it_o", "nh", "no")}

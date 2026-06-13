@@ -64,10 +64,11 @@ class ScoreEvaluator:
     """Rollout the score prompt on dev; build the honest cost-aware curve and
     measure how far above the interpolation line it sits."""
 
-    def __init__(self, router, dev, workers):
+    def __init__(self, router, dev, workers, cot=False):
         self.router = router
         self.dev = dev
         self.workers = workers
+        self.cot = cot                     # CoT scoring mode (haiku reasons first)
         self.rollout_cost = 0.0
         # truth arrays from dev (recorded)
         self.hp = np.array([d["haiku_perf"] for d in dev], float)
@@ -85,7 +86,8 @@ class ScoreEvaluator:
 
         def one(d):
             p_h, p_o, info = self.router.score(
-                d["query"], qvec=d["embedding"], q_embed_tokens=0, exclude_id=d["id"])
+                d["query"], qvec=d["embedding"], q_embed_tokens=0, exclude_id=d["id"],
+                cot=self.cot)
             return p_h, p_o, info["pred_haiku_out"], info["pred_opus_out"]
 
         before = self.router.router_cost

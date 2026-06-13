@@ -167,13 +167,41 @@ class MemoryRouter:
             "L3 HAIKU=<correct%>,<out_tokens> OPUS=<correct%>,<out_tokens>"
         )
 
-    def score(self, query, qvec=None, q_embed_tokens=0, exclude_id=None, ensemble=1):
+    def _score_prompt_cot(self, query, neighbors):
+        """CoT scoring: let haiku REASON briefly about the query's own structure
+        (steps, traps, where a fast model would slip) before emitting the scores.
+
+        Same single serving call — only the output is longer. The reasoning is
+        meant to sharpen p_o/p_h (which neighbor stats alone estimate weakly,
+        corr≈0.17) by actually inspecting the problem.
+        """
+        lines = []
+        for nb, sim in neighbors:
+            hp = "right" if nb["haiku_perf"] >= 0.5 else "WRONG"
+            op = "right" if nb["opus_perf"] >= 0.5 else "WRONG"
+            lines.append(
+                f"- sim={sim:.2f} [{nb.get('task_name','?')}/"
+                f"{nb.get('difficulty','?')}] haiku={hp} ({int(nb.get('haiku_out',0))} tok), "
+                f"opus={op} ({int(nb.get('opus_out',0))} tok)")
+        hist = "\n".join(lines)
+        return (
+            f"{self.score_instruction}\n\n"
+            f"Most similar past problems:\n{hist}\n\n"
+            f"New query:\n{query}\n\n"
+            "Think step by step in 2-4 short sentences: what does this problem "
+            "actually require (how many steps, any traps or heavy computation), "
+            "where would a FAST cheap model (HAIKU) most likely slip, and would "
+            "the STRONGER model (OPUS) get it. Combine that with the neighbor "
+            "outcomes. THEN, on a final line, output exactly:\n"
+            "FINAL: HAIKU=<correct%0-100>,<out_tokens> OPUS=<correct%0-100>,<out_tokens>"
+        )
+
+    def score(self, query, qvec=None, q_embed_tokens=0, exclude_id=None, ensemble=1, cot=False):
         """Return (p_h, p_o, info) where info also has predicted out tokens/cost.
 
-        ensemble=1: one estimate (original). ensemble>1: ask haiku for several
-        independent estimates IN THE SAME CALL and average them (v3 self-ensemble),
-        which lowers single-judgement variance without adding a serving call.
-        Routing is deferred to a threshold on a marginal signal.
+        ensemble=1: one estimate (original). ensemble>1: several estimates in one
+        call, averaged (v3). cot=True: haiku reasons briefly before the scores
+        (one call, longer output). Routing is deferred to a threshold signal.
         """
         if qvec is None:
             qvec, q_embed_tokens = embed(query)
@@ -185,7 +213,24 @@ class MemoryRouter:
         nh_out = float(np.mean([n.get("haiku_out", 0) for n in nb]))
         no_out = float(np.mean([n.get("opus_out", 0) for n in nb]))
 
-        if ensemble > 1:
+        if cot:
+            prompt = self._score_prompt_cot(query, neighbors)
+            txt, it, ot = haiku_decide(prompt, max_tokens=300, prefill=None)
+            full = txt
+            # parse the LAST occurrence so the FINAL line wins over any in-reasoning numbers
+            ms = list(re.finditer(
+                r"HAIKU\s*=\s*(\d{1,3})\s*%?\s*,\s*(\d{1,6}).*?OPUS\s*=\s*(\d{1,3})\s*%?\s*,\s*(\d{1,6})",
+                full, re.I | re.S))
+            if ms:
+                m = ms[-1]
+                p_h = min(int(m.group(1)), 100) / 100.0
+                out_h = float(m.group(2))
+                p_o = min(int(m.group(3)), 100) / 100.0
+                out_o = float(m.group(4))
+            else:
+                p_h, p_o, out_h, out_o = nh, no, nh_out, no_out
+            n_lens = 1
+        elif ensemble > 1:
             prompt = self._score_prompt_ensemble(query, neighbors)
             txt, it, ot = haiku_decide(prompt, max_tokens=120, prefill="L1 HAIKU=")
             full = "L1 HAIKU=" + txt
