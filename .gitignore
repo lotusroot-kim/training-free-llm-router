@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+
+# large embedding files (rebuild: build_memory.py / qwen_embed.py on a GPU box)
+memory.jsonl
+memory_qwen.jsonl
+mem_qwen.jsonl
+test_qwen.jsonl
+test_titan.jsonl
+
+# transient eval outputs / logs
+route_decisions*.jsonl
+threshold_scores*.jsonl
+router_cost.json
+*.log
+
+# keep: result plots (*.png), evolved instructions (gepa_*_instruction.txt),
+#       run summaries (gepa_*_run.json) — these are the artifacts worth sharing.
