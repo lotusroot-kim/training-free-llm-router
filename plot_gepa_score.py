@@ -49,8 +49,12 @@ def main():
     fig, ax = plt.subplots(figsize=(9, 6.5))
     ax.plot([Hc, Oc], [Ha, Oa], "k--", lw=1.5,
             label="haiku↔opus mix baseline (random split)")
+    if os.path.exists("threshold_scores_qwen_seed.jsonl"):
+        seed = load("threshold_scores_qwen_seed.jsonl")
+        ax.plot(*cost_aware_curve(seed)[:, :2].T, color="darkorange", lw=2,
+                label="seed prompt, before GEPA (+0.009 above mix)")
     ax.plot(*cost_aware_curve(best)[:, :2].T, color="blue", lw=3,
-            label="GEPA-optimized router (cost-aware, honest)")
+            label="GEPA-optimized router (+0.037 above mix)")
     ax.scatter([Hc, Oc], [Ha, Oa], c=["tab:blue", "tab:green"], s=90, zorder=5)
     ax.annotate("all-haiku", (Hc, Ha), textcoords="offset points", xytext=(8, -12), fontsize=8)
     ax.annotate("all-opus", (Oc, Oa), textcoords="offset points", xytext=(-58, 4), fontsize=8)
@@ -64,7 +68,8 @@ def main():
                 (half, ah), textcoords="offset points", xytext=(8, -28), fontsize=8, color="red")
     ax.set_xlabel("serving cost ($ / query)   —   router/GEPA cost tracked separately")
     ax.set_ylabel("accuracy")
-    ax.set_title("GEPA-optimized router: ~opus accuracy at roughly half the cost")
+    ax.set_title("GEPA prompt optimization lifts the routing curve\n"
+                 "(seed → GEPA); the optimized router keeps ~opus accuracy at ~half cost")
     ax.grid(alpha=0.3)
     ax.legend(loc="lower right", fontsize=9)
     fig.tight_layout()
