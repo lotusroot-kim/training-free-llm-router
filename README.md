@@ -125,6 +125,52 @@ thrifty regime.
 
 ![cost/accuracy curve](gepa_score_curve.png)
 
+## RouterGEPA: evolving the routing policy as CODE (0 LLM calls at serving)
+
+The router above asks **haiku** (one LLM call/query) to read the retrieved
+neighbors and score each model. Can we drop that serving-time LLM entirely?
+
+**RouterGEPA** replaces the LLM judge with a small **Python function**
+
+```python
+route(neighbors) -> (p_haiku, p_opus, out_haiku, out_opus)
+```
+
+that maps the kNN neighbor statistics to each model's P(correct) and token
+estimate. The **seed** is a plain similarity-weighted average — i.e. a vanilla
+kNN router. GEPA then evolves the *source code* of that function: opus reads the
+current function plus its worst routing decisions and rewrites it (reflective
+evolution of an **algorithm**, not a prompt). No gradients, no LLM at route time —
+serving cost is just kNN retrieval + numpy.
+
+What GEPA's evolved code added over the plain-kNN seed (it discovered these on its
+own): similarity-**sharp exponential weighting**, an **effective neighbor count**
+with **shrinkage toward a prior** on low support, an **opus-dominance floor**, and
+a **robust (median-blended) token estimate**.
+
+On the held-out 600-query test, mean accuracy **above the haiku↔opus mix line**:
+
+| router | serving cost | above mix-line |
+|---|---|---|
+| plain KNN router (no GEPA) | 0 LLM calls | +0.0142 |
+| **RouterGEPA — evolved CODE policy** | **0 LLM calls** | **+0.0291** |
+| GEPA-tuned LLM-judge | 1 haiku call | +0.0373 |
+
+GEPA roughly **doubles** the plain-kNN router (**2.05×**) with **zero serving LLM
+calls**, capturing **~78%** of the LLM-judge's gain for free at serve time.
+
+![code policy vs LLM judge](curve_code_vs_llm.png)
+
+```bash
+# evolve the routing policy as code (GEPA/opus runs once, offline)
+$PY gepa_code.py --memory memory_qwen.jsonl --out gepa_code_policy.py --dev 200 --iters 8
+
+# score plain-KNN seed and the evolved policy on held-out test, then plot
+$PY run_code_policy_test.py --policy seed_code_policy.py  --out threshold_scores_code_seed.jsonl
+$PY run_code_policy_test.py --policy gepa_code_policy.py  --out threshold_scores_code.jsonl
+$PY plot_code_vs_llm.py                                   # -> curve_code_vs_llm.png
+```
+
 ## What moved the needle (and the dead ends)
 
 This repo keeps the failures because they're the interesting part:
